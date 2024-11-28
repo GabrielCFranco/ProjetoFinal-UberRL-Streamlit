@@ -1,0 +1,59 @@
+import streamlit as st
+import pickle
+import numpy as np
+
+# Load the trained model and scaler
+with open('ModeloRL.pkl', 'rb') as file:
+    ModeloRL = pickle.load(file)
+    
+with open('Padronizador.pkl', 'rb') as file:
+    Padronizador = pickle.load(file)
+
+def main():
+    st.title("Taxi Fare Prediction")
+    
+    # Input for pickup coordinates
+    st.subheader("Enter Pickup Location")
+    pickup_lat = st.number_input("Pickup Latitude", value=0.0, format="%.6f")
+    pickup_long = st.number_input("Pickup Longitude", value=0.0, format="%.6f")
+    
+    # Input for dropoff coordinates
+    st.subheader("Enter Dropoff Location")
+    dropoff_lat = st.number_input("Dropoff Latitude", value=0.0, format="%.6f")
+    dropoff_long = st.number_input("Dropoff Longitude", value=0.0, format="%.6f")
+    
+    # Calculate the distance
+    if st.button("Calculate Distance"):
+        distance = haversine_array(pickup_long, pickup_lat, dropoff_long, dropoff_lat)
+        st.write(f"Calculated Distance: {distance:.2f} km")
+    
+    # Predict the fare
+    if st.button('Predict Fare'):
+        try:
+            distance = haversine_array(pickup_long, pickup_lat, dropoff_long, dropoff_lat)
+            distance_scaled = Padronizador.transform([[distance]])
+            fare_pred = ModeloRL.predict(distance_scaled)
+            st.write(f"Predicted Fare: ${fare_pred[0]:.2f}")
+        except Exception as e:
+            st.write("Error:", e)
+            st.write("Please ensure valid coordinates are entered.")
+
+# Function to calculate distance using the haversine formula
+def haversine_array(pickup_long, pickup_lat, dropoff_long, dropoff_lat):
+    # Convert degrees to radians
+    pickup_long, pickup_lat, dropoff_long, dropoff_lat = map(
+        lambda x: x / 360.0 * (2 * np.pi), 
+        [pickup_long, pickup_lat, dropoff_long, dropoff_lat]
+    )
+    # Calculate differences
+    dlon = dropoff_long - pickup_long
+    dlat = dropoff_lat - pickup_lat
+    # Haversine formula
+    a = np.sin(dlat / 2) ** 2 + np.cos(pickup_lat) * np.cos(dropoff_lat) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arcsin(np.sqrt(a))
+    # Earth's radius in kilometers
+    km = 6367 * c
+    return km
+
+if __name__ == "__main__":
+    main()
